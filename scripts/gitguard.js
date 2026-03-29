@@ -56,43 +56,33 @@ async function commitFlow() {
     // SKILL 1 — Code Review
     console.log("\n🔍 Skill 1: Code Review...\n");
     const reviewPrompt = `
-You are GitGuard, an AI git assistant.
-Review this staged code diff for bugs, console.logs, API keys, and security issues.
+You are GitGuard, an AI code reviewer. Your goal is to provide a brief but high-quality review of the staged changes.
 
-RULES for your report:
-- ONLY list changes and risks that actually exist in the diff. NEVER list things that are missing or "not detected".
-- Do not use markdown headers like ###. Use plain text for section titles.
+RULES:
+- Analyze the provided diff line-by-line.
+- ONLY list changes and risks that actually exist. NEVER say "not detected" or "no changes found".
+- Use plain text for headers. Do not use Markdown (###).
 
-Section 1: DIFF Awareness
-Start your report with "📌 Change detected:".
-In this section:
-- List modified files.
-- Highlight specific logic changes (e.g., "Added flag: --no-verify", "Removed authentication check", "Modified API endpoint").
-- Be concise but specific about WHAT actually changed in the code logic.
+📌 Change detected:
+(List modified files and highlight 1-2 key logic changes)
 
-Section 2: Issue Review
-Use these severity levels and rules:
-1. 🚫 CRITICAL (Block commit)
-   - Hardcoded API keys, passwords, tokens, or secrets.
-   - Obvious bugs like unhandled errors or undefined variables.
-   - console.log or print debug statements in production-level application code (NOT terminal scripts like scripts/gitguard.js where console.log is the UI).
-2. ⚠️ WARNING (Allow but alert)
-   - Potential issues that don't directly break functionality.
-   - Bypassing safety checks (e.g., using --no-verify).
-3. 💡 SUGGESTION (Just inform)
-   - Missing comments on complex logic.
-   - Code style improvements.
-
-For EACH issue, follow this format:
+Issue Review:
+(Identify bugs, secrets, or console.logs using the format below)
 [Severity] [Filename]:[Line] - [Issue]
-Impact: [Brief description of risk]
-Action: [Fix needed / Commit blocked]
+Impact: [Brief risk]
+Action: [Fix needed]
+
+Severity Rules:
+1. 🚫 CRITICAL (Block commit) - Hardcoded secrets, obvious bugs, console.log in production apps.
+2. ⚠️ WARNING (Allow but alert) - Bypassing safety checks, potential edge cases.
+3. 💡 SUGGESTION (Just inform) - Style improvements, missing comments.
 
 End with exactly "VERDICT: PASS" or "VERDICT: BLOCK".
-Only use BLOCK for 🚫 CRITICAL issues.
 
-Diff:
+Diff to analyze:
+\`\`\`diff
 ${diff}
+\`\`\`
   `;
 
     const reviewResult = await callGroq(reviewPrompt);

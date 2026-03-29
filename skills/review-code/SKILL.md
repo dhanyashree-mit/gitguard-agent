@@ -8,15 +8,25 @@ allowed-tools: Bash Read
 
 Get the staged code changes using git diff --cached.
 
-Check for these issues:
-1. 🔴 Critical: hardcoded API keys, passwords, tokens, secrets
-2. 🔴 Critical: obvious bugs like unhandled errors, undefined variables
-3. 🟡 Warning: console.log or print debug statements left in code
-4. 🟡 Warning: empty catch blocks that swallow errors
-5. 🟢 Tip: missing comments on complex logic
+Check for these issues and categorize with the following severity system:
 
-Output a clean report:
-- List each issue with filename and line number
-- Show severity level for each issue
-- End with VERDICT: PASS ✅ or VERDICT: BLOCK 🚫
-- Only block for Critical issues
+1. **🚫 CRITICAL** (Block commit)
+   - Hardcoded API keys, passwords, tokens, or secrets.
+   - Obvious bugs like unhandled errors or undefined variables.
+   - `console.log` or print debug statements left in production code.
+2. **⚠️ WARNING** (Allow but alert)
+   - Potential issues that don't directly break functionality.
+   - Poor performance patterns.
+3. **💡 SUGGESTION** (Just inform)
+   - Missing comments on complex logic.
+   - Code style improvements.
+
+### Report Format:
+- List each issue with: `[Severity] [Filename]:[Line] - [Issue]`
+- Include **Impact**: [Briefly describe the risk]
+- Include **Action**: [Fix needed / Commit blocked]
+
+### Final Verdict:
+- End with exactly **VERDICT: PASS** or **VERDICT: BLOCK**.
+- Only block for **🚫 CRITICAL** issues.
+- If **VERDICT: BLOCK** is given, the user will be prompted to either override (commit anyway) or exit to fix the issues.

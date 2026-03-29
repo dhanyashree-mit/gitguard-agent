@@ -44,39 +44,59 @@ function askUser(question) {
 }
 
 async function commitFlow() {
-  const diff = run("git diff --cached");
-  const files = run("git diff --cached --name-only");
+  try {
+    const diff = run("git diff --cached");
+    const files = run("git diff --cached --name-only");
 
-  if (!diff) {
-    console.log("⚠️  No staged changes found. Run git add . first!");
-    process.exit(0);
-  }
+    if (!diff) {
+      console.log("⚠️  No staged changes found. Run git add . first!");
+      process.exit(0);
+    }
 
-  // SKILL 1 — Review Code
-  console.log("\n🔍 Skill 1: Reviewing your code...\n");
-  const reviewPrompt = `
+    // SKILL 1 — Review Code
+    console.log("\n🔍 Skill 1: Reviewing your code...\n");
+    const reviewPrompt = `
 You are GitGuard, an AI git assistant.
 Review this staged code diff for bugs, console.logs, API keys, and security issues.
-Use severity levels: 🔴 Critical, 🟡 Warning, 🟢 Tip
-List each issue with filename and line number.
+
+Use these severity levels and rules:
+1. 🚫 CRITICAL (Block commit)
+   - Hardcoded API keys, passwords, tokens, or secrets.
+   - Obvious bugs like unhandled errors or undefined variables.
+   - console.log or print debug statements in production-level application code (NOT terminal scripts like scripts/gitguard.js where console.log is the UI).
+2. ⚠️ WARNING (Allow but alert)
+   - Potential issues that don't directly break functionality.
+3. 💡 SUGGESTION (Just inform)
+   - Missing comments on complex logic.
+   - Code style improvements.
+
+For EACH issue, follow this format:
+[Severity] [Filename]:[Line] - [Issue]
+Impact: [Brief description of risk]
+Action: [Fix needed / Commit blocked]
+
 End with exactly "VERDICT: PASS" or "VERDICT: BLOCK".
-Only use BLOCK for Critical issues like hardcoded passwords or API keys directly in code.
+Only use BLOCK for 🚫 CRITICAL issues.
 
 Diff:
 ${diff}
   `;
 
-  const reviewResult = await callGroq(reviewPrompt);
-  console.log(reviewResult);
+    const reviewResult = await callGroq(reviewPrompt);
+    console.log(reviewResult);
 
-  if (reviewResult.includes("VERDICT: BLOCK")) {
-    console.log("\n🚫 Fix the critical issues above before committing!\n");
-    process.exit(1);
-  }
+    if (reviewResult.includes("VERDICT: BLOCK")) {
+      const override = askUser("\n🚫 Critical issues detected! Commit anyway? (y/N): ");
+      if (override.toLowerCase() !== "y") {
+        console.log("\n🚫 Please fix the issues above before committing!\n");
+        process.exit(1);
+      }
+      console.log("\n⚠️ Committing despite critical issues...\n");
+    }
 
-  // SKILL 2 — Auto Commit Message
-  console.log("\n✨ Skill 2: Writing your commit message...\n");
-  const msgPrompt = `
+    // SKILL 2 — Auto Commit Message
+    console.log("\n✨ Skill 2: Writing your commit message...\n");
+    const msgPrompt = `
 You are a senior developer.
 Given a git diff, generate a concise, professional commit message.
 
@@ -98,38 +118,43 @@ Output exactly in this format:
 - filename: description
   `;
 
-  const msgResult = await callGroq(msgPrompt);
-  console.log(msgResult);
+    const msgResult = await callGroq(msgPrompt);
+    console.log(msgResult);
 
-  // Extract suggested message
-  const match = msgResult.match(/"([^"]+)"/);
-  const autoMessage = match ? match[1] : "Update code";
+    // Extract suggested message
+    const match = msgResult.match(/"([^"]+)"/);
+    const autoMessage = match ? match[1] : "Update code";
 
-  // Ask Y/N using PowerShell — works on Windows even inside git hooks!
-  const answer = askUser("\n👉 Use this commit message? (Y/n): ");
-  console.log(""); // new line
+    // Ask Y/N using PowerShell — works on Windows even inside git hooks!
+    const answer = askUser("\n👉 Use this commit message? (Y/n): ");
+    console.log(""); // new line
 
-  if (answer.toLowerCase() === "n") {
-    const customMsg = askUser("✏️  Type your own commit message: ");
-    console.log("");
-    execSync(`git commit -m "${customMsg}" --no-verify`, { stdio: 'inherit' });
-    console.log(`\n✅ Committed with your message: "${customMsg}"`);
-  } else {
-    execSync(`git commit -m "${autoMessage}" --no-verify`, { stdio: 'inherit' });
-    console.log(`\n✅ Committed: "${autoMessage}"`);
+    if (answer.toLowerCase() === "n") {
+      const customMsg = askUser("✏️  Type your own commit message: ");
+      console.log("");
+      execSync(`git commit -m "${customMsg}" --no-verify`, { stdio: 'inherit' });
+      console.log(`\n✅ Committed with your message: "${customMsg}"`);
+    } else {
+      execSync(`git commit -m "${autoMessage}" --no-verify`, { stdio: 'inherit' });
+      console.log(`\n✅ Committed: "${autoMessage}"`);
+    }
+  } catch (error) {
+    console.error("\n❌ Error during commit flow:", error.message);
+    process.exit(1);
   }
 }
 
 async function pushFlow() {
-  const branch = run("git branch --show-current");
-  const files = run("git diff origin/main...HEAD --name-only");
-  const fileCount = files ? files.split("\n").length : 0;
+  try {
+    const branch = run("git branch --show-current");
+    const files = run("git diff origin/main...HEAD --name-only");
+    const fileCount = files ? files.split("\n").length : 0;
 
-  console.log(`\n📍 Branch: ${branch}`);
-  console.log(`📁 Files being pushed: ${fileCount}\n`);
+    console.log(`\n📍 Branch: ${branch}`);
+    console.log(`📁 Files being pushed: ${fileCount}\n`);
 
-  // SKILL 3 — Warn Risky Ops
-  const riskPrompt = `
+    // SKILL 3 — Warn Risky Ops
+    const riskPrompt = `
 You are GitGuard, an AI git assistant.
 Analyse this push operation for risks.
 Use severity levels: 🔴 Critical, 🟡 Warning, 🟢 Tip
@@ -149,21 +174,25 @@ Only BLOCK if force push is detected.
 End with exactly "VERDICT: PASS" or "VERDICT: BLOCK".
   `;
 
-  const riskResult = await callGroq(riskPrompt);
-  console.log(riskResult);
+    const riskResult = await callGroq(riskPrompt);
+    console.log(riskResult);
 
-  if (riskResult.includes("VERDICT: BLOCK")) {
-    const answer = askUser("\n⚠️  Risky operation detected! Push anyway? (y/N): ");
-    console.log("");
-    if (answer.toLowerCase() !== "y") {
-      console.log("\n🚫 Push cancelled. Stay safe! 🛡️\n");
-      process.exit(1);
+    if (riskResult.includes("VERDICT: BLOCK")) {
+      const answer = askUser("\n⚠️  Risky operation detected! Push anyway? (y/N): ");
+      console.log("");
+      if (answer.toLowerCase() !== "y") {
+        console.log("\n🚫 Push cancelled. Stay safe! 🛡️\n");
+        process.exit(1);
+      }
     }
-  }
 
-  //execSync("git push", { stdio: 'inherit' });
-  execSync("git push --no-verify", { stdio: 'inherit' });
-  console.log("\n✅ Pushed successfully!\n");
+    //execSync("git push", { stdio: 'inherit' });
+    execSync("git push --no-verify", { stdio: 'inherit' });
+    console.log("\n✅ Pushed successfully!\n");
+  } catch (error) {
+    console.error("\n❌ Error during push flow:", error.message);
+    process.exit(1);
+  }
 }
 
 // Run based on mode

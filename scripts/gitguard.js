@@ -59,6 +59,14 @@ async function commitFlow() {
 You are GitGuard, an AI git assistant.
 Review this staged code diff for bugs, console.logs, API keys, and security issues.
 
+### Part 1: DIFF Awareness
+Start your report with a section titled "📌 Change detected:".
+In this section:
+- List modified files.
+- Highlight specific logic changes (e.g., "Added flag: --no-verify", "Removed authentication check", "Modified API endpoint").
+- Be concise but specific about WHAT actually changed in the code logic.
+
+### Part 2: Issue Review
 Use these severity levels and rules:
 1. 🚫 CRITICAL (Block commit)
    - Hardcoded API keys, passwords, tokens, or secrets.
@@ -66,6 +74,7 @@ Use these severity levels and rules:
    - console.log or print debug statements in production-level application code (NOT terminal scripts like scripts/gitguard.js where console.log is the UI).
 2. ⚠️ WARNING (Allow but alert)
    - Potential issues that don't directly break functionality.
+   - Bypassing safety checks (e.g., using --no-verify).
 3. 💡 SUGGESTION (Just inform)
    - Missing comments on complex logic.
    - Code style improvements.

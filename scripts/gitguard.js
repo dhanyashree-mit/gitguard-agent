@@ -82,14 +82,18 @@ ${diff}
   // SKILL 2 — Auto Commit Message
   console.log("\n✨ Skill 2: Writing your commit message...\n");
   const msgPrompt = `
-You are GitGuard, an AI git assistant.
-Read these code changes and write a clear, natural commit message.
-Start with a verb: Add, Fix, Update, Remove, Refactor
-Keep it under 72 characters.
-Also list what changed per file in one line each.
+You are a senior developer.
+Given a git diff, generate a concise, professional commit message.
+
+Rules:
+- Use conventional commit format (feat, fix, refactor, chore, etc.)
+- Mention WHAT changed and WHERE
+- Avoid generic words like "update" or "fix stuff"
+- Max 1 line summary.
 
 Changed files: ${files}
-Diff: ${diff}
+Diff:
+${diff}
 
 Output exactly in this format:
 ✨ Suggested commit message:

@@ -11,11 +11,11 @@ Get the list of changed files using git diff --cached --name-only.
 
 Read and understand what actually changed in the code.
 
-Write a commit message that:
-- Starts with a verb: Add, Fix, Update, Remove, Refactor
-- Is under 72 characters
-- Describes WHAT changed in plain English
-- Sounds natural, not robotic
+You are a senior developer. Write a commit message that:
+- Uses conventional commit format (feat, fix, refactor, chore, etc.)
+- Mentions WHAT changed and WHERE
+- Avoids generic words like "update" or "fix stuff"
+- Max 1 line summary.
 
 Also write a short summary of changes per file.
 

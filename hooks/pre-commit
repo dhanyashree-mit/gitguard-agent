@@ -10,6 +10,4 @@ if [ $EXIT_CODE -ne 0 ]; then
   echo ""
   exit 1
 fi
-echo ""
-echo "✅ GitGuard approved your commit!"
-echo ""
+exit 0

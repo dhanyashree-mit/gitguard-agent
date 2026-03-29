@@ -1,5 +1,5 @@
-const { execSync } = require("child_process");
-const readline = require("readline");
+const { execSync, spawnSync } = require("child_process");
+const fs = require("fs");
 
 const mode = process.argv[2];
 
@@ -28,24 +28,44 @@ function run(cmd) {
   }
 }
 
-async function preCommit() {
+function askUser(question) {
+  // Write question to terminal directly
+  process.stderr.write(question);
+  
+  // Read directly from CON (Windows keyboard device) — bypasses git hook stdin!
+  try {
+    const result = spawnSync("powershell", [
+      "-Command",
+      `$ans = Read-Host; Write-Output $ans`
+    ], {
+      stdio: ['inherit', 'pipe', 'inherit'],
+      timeout: 30000
+    });
+    const answer = result.stdout.toString().trim();
+    return answer;
+  } catch (e) {
+    return "y"; // default to yes if input fails
+  }
+}
+
+async function commitFlow() {
   const diff = run("git diff --cached");
   const files = run("git diff --cached --name-only");
 
   if (!diff) {
-    console.log("⚠️  No staged changes found. Use git add . first!");
+    console.log("⚠️  No staged changes found. Run git add . first!");
     process.exit(0);
   }
 
   // SKILL 1 — Review Code
-  console.log("🔍 Skill 1: Reviewing your code...\n");
+  console.log("\n🔍 Skill 1: Reviewing your code...\n");
   const reviewPrompt = `
 You are GitGuard, an AI git assistant.
 Review this staged code diff for bugs, console.logs, API keys, and security issues.
 Use severity levels: 🔴 Critical, 🟡 Warning, 🟢 Tip
 List each issue with filename and line number.
 End with exactly "VERDICT: PASS" or "VERDICT: BLOCK".
-Only use BLOCK for Critical issues.
+Only use BLOCK for Critical issues like hardcoded passwords or API keys directly in code.
 
 Diff:
 ${diff}
@@ -55,6 +75,7 @@ ${diff}
   console.log(reviewResult);
 
   if (reviewResult.includes("VERDICT: BLOCK")) {
+    console.log("\n🚫 Fix the critical issues above before committing!\n");
     process.exit(1);
   }
 
@@ -70,7 +91,7 @@ Also list what changed per file in one line each.
 Changed files: ${files}
 Diff: ${diff}
 
-Output format:
+Output exactly in this format:
 ✨ Suggested commit message:
 "your message here"
 
@@ -81,38 +102,31 @@ Output format:
   const msgResult = await callGroq(msgPrompt);
   console.log(msgResult);
 
-  // Ask user to confirm
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
-  });
+  // Extract suggested message
+  const match = msgResult.match(/"([^"]+)"/);
+  const autoMessage = match ? match[1] : "Update code";
 
-  rl.question("\n👉 Use this commit message? (Y/n): ", async (answer) => {
-    rl.close();
-    if (answer.toLowerCase() === "n") {
-      console.log("✏️  OK! Type your own message when git asks.");
-      process.exit(0);
-    }
+  // Ask Y/N using PowerShell — works on Windows even inside git hooks!
+  const answer = askUser("\n👉 Use this commit message? (Y/n): ");
+  console.log(""); // new line
 
-    // Extract message and commit
-    const match = msgResult.match(/"([^"]+)"/);
-    if (match) {
-      const message = match[1];
-      run(`git commit -m "${message}"`);
-      console.log(`\n✅ Committed: "${message}"`);
-      process.exit(0);
-    }
-    process.exit(0);
-  });
+  if (answer.toLowerCase() === "n") {
+    const customMsg = askUser("✏️  Type your own commit message: ");
+    console.log("");
+    execSync(`git commit -m "${customMsg}" --no-verify`, { stdio: 'inherit' });
+    console.log(`\n✅ Committed with your message: "${customMsg}"`);
+  } else {
+    execSync(`git commit -m "${autoMessage}" --no-verify`, { stdio: 'inherit' });
+    console.log(`\n✅ Committed: "${autoMessage}"`);
+  }
 }
 
-async function prePush() {
+async function pushFlow() {
   const branch = run("git branch --show-current");
   const files = run("git diff origin/main...HEAD --name-only");
   const fileCount = files ? files.split("\n").length : 0;
-  const args = process.env.GIT_PUSH_ARGS || "";
 
-  console.log(`📍 Branch: ${branch}`);
+  console.log(`\n📍 Branch: ${branch}`);
   console.log(`📁 Files being pushed: ${fileCount}\n`);
 
   // SKILL 3 — Warn Risky Ops
@@ -124,16 +138,14 @@ Use severity levels: 🔴 Critical, 🟡 Warning, 🟢 Tip
 Details:
 - Branch: ${branch}
 - Files changed: ${fileCount}
-- Push args: ${args}
 - Protected branches: main, master, production
 
 Check for:
-1. Force push being used
-2. Pushing directly to main/master/production
-3. More than 20 files at once
-4. Branch name has no prefix (feature/, fix/, chore/)
+1. Pushing directly to main/master/production
+2. More than 20 files at once
+3. Branch name has no prefix like feature/, fix/, chore/
 
-For each risk explain what could go wrong and suggest safer alternative.
+For each risk found explain what could go wrong and suggest safer alternative.
 End with exactly "VERDICT: PASS" or "VERDICT: BLOCK".
 Only BLOCK for Critical issues.
   `;
@@ -142,14 +154,29 @@ Only BLOCK for Critical issues.
   console.log(riskResult);
 
   if (riskResult.includes("VERDICT: BLOCK")) {
-    process.exit(1);
+    const answer = askUser("\n⚠️  Risky operation detected! Push anyway? (y/N): ");
+    console.log("");
+    if (answer.toLowerCase() !== "y") {
+      console.log("\n🚫 Push cancelled. Stay safe! 🛡️\n");
+      process.exit(1);
+    }
   }
-  process.exit(0);
+
+  execSync("git push", { stdio: 'inherit' });
+  console.log("\n✅ Pushed successfully!\n");
 }
 
 // Run based on mode
 if (mode === "pre-commit") {
-  preCommit();
+  commitFlow();
 } else if (mode === "pre-push") {
-  prePush();
+  pushFlow();
+} else {
+  console.log(`
+🛡️  GitGuard — AI Git Assistant
+
+Usage:
+  node scripts/gitguard.js pre-commit   → Review + auto commit message
+  node scripts/gitguard.js pre-push     → Check for risky push operations
+  `);
 }

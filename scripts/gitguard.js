@@ -138,16 +138,16 @@ Use severity levels: 🔴 Critical, 🟡 Warning, 🟢 Tip
 Details:
 - Branch: ${branch}
 - Files changed: ${fileCount}
-- Protected branches: main, master, production
+- Force push detected: ${process.env.GIT_PUSH_OPTION_COUNT > 0 ? "yes" : "no"}
 
-Check for:
-1. Pushing directly to main/master/production
-2. More than 20 files at once
-3. Branch name has no prefix like feature/, fix/, chore/
+Check ONLY for these critical risks:
+1. Force push (--force or -f flag) to main/master/production — this is the ONLY reason to BLOCK
+2. More than 20 files changed at once — just a Warning, not a block
 
-For each risk found explain what could go wrong and suggest safer alternative.
+Do NOT block for simply pushing to main — that is normal and allowed.
+Only BLOCK if force push is detected.
+
 End with exactly "VERDICT: PASS" or "VERDICT: BLOCK".
-Only BLOCK for Critical issues.
   `;
 
   const riskResult = await callGroq(riskPrompt);

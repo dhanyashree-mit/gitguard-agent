@@ -2,7 +2,7 @@
 echo ""
 echo "🛡️  GitGuard is checking your push..."
 echo ""
-cat - | node scripts/gitguard.js pre-push
+node scripts/gitguard.js pre-push
 EXIT_CODE=$?
 if [ $EXIT_CODE -ne 0 ]; then
   echo ""

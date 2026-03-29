@@ -43,21 +43,6 @@ function askUser(question) {
   }
 }
 
-async function readStdin() {
-  return new Promise((resolve) => {
-    let data = "";
-    process.stdin.setEncoding("utf8");
-    process.stdin.on("data", (chunk) => {
-      data += chunk;
-    });
-    process.stdin.on("end", () => {
-      resolve(data);
-    });
-    // Timeout for empty stdin
-    setTimeout(() => resolve(data), 50);
-  });
-}
-
 async function commitFlow() {
   try {
     const diff = run("git diff --cached");
@@ -145,6 +130,7 @@ Output exactly in this format:
     if (quoteMatch) {
       autoMessage = quoteMatch[1];
     } else {
+      // Fallback: look for the line after the star icon or just the first non-empty line
       const lines = msgResult.split("\n").map(l => l.trim()).filter(l => l.length > 0);
       const suggestIdx = lines.findIndex(l => l.includes("Suggested commit message"));
       if (suggestIdx !== -1 && lines[suggestIdx + 1]) {
@@ -154,9 +140,19 @@ Output exactly in this format:
       }
     }
 
-    console.log(`\n💡 Senior Tip: Use this commit message for a professional log:\n   git commit -m "${autoMessage}"\n`);
-    
-    process.exit(0);
+    // Ask Y/N using PowerShell — works on Windows even inside git hooks!
+    const answer = askUser("\n👉 Use this commit message? (Y/n): ");
+    console.log(""); // new line
+
+    if (answer.toLowerCase() === "n") {
+      const customMsg = askUser("✏️  Type your own commit message: ");
+      console.log("");
+      execSync(`git commit -m "${customMsg}" --no-verify`, { stdio: 'inherit' });
+      console.log(`\n✅ Committed with your message: "${customMsg}"`);
+    } else {
+      execSync(`git commit -m "${autoMessage}" --no-verify`, { stdio: 'inherit' });
+      console.log(`\n✅ Committed: "${autoMessage}"`);
+    }
   } catch (error) {
     console.error("\n❌ Error during commit flow:", error.message);
     process.exit(1);
@@ -166,9 +162,6 @@ Output exactly in this format:
 async function pushFlow() {
   try {
     const branch = run("git branch --show-current");
-    const stdinData = await readStdin();
-    const isForce = stdinData.includes(" +"); // git pre-push stdin format includes '+' for force push
-
     const files = run("git diff origin/main...HEAD --name-only");
     const fileCount = files ? files.split("\n").length : 0;
 
@@ -180,16 +173,19 @@ async function pushFlow() {
     const riskPrompt = `
 You are GitGuard, an AI git assistant.
 Analyse this push operation for risks.
+Use severity levels: 🔴 Critical, 🟡 Warning, 🟢 Tip
 
 Details:
 - Branch: ${branch}
 - Files changed: ${fileCount}
-- Force push detected: ${isForce ? "yes" : "unknown (check if you added --force)"}
+- Force push detected: ${process.env.GIT_PUSH_OPTION_COUNT > 0 ? "yes" : "no"}
 
-Risk Rules:
-1. BLOCK if pushing to protected branch (main/master/production) AND files > 20.
-2. BLOCK if force push (-f or --force) is detected to protected branches.
-3. WARN if any force push is detected.
+Check ONLY for these critical risks:
+1. Force push (--force or -f flag) to main/master/production — this is the ONLY reason to BLOCK
+2. More than 20 files changed at once — just a Warning, not a block
+
+Do NOT block for simply pushing to main — that is normal and allowed.
+Only BLOCK if force push is detected.
 
 End with exactly "VERDICT: PASS" or "VERDICT: BLOCK".
   `;
@@ -206,8 +202,9 @@ End with exactly "VERDICT: PASS" or "VERDICT: BLOCK".
       }
     }
 
-    // Pass control back to the original git process
-    process.exit(0);
+    //execSync("git push", { stdio: 'inherit' });
+    execSync("git push --no-verify", { stdio: 'inherit' });
+    console.log("\n✅ Pushed successfully!\n");
   } catch (error) {
     console.error("\n❌ Error during push flow:", error.message);
     process.exit(1);

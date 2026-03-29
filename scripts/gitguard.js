@@ -29,22 +29,17 @@ function run(cmd) {
 }
 
 function askUser(question) {
-  // Write question to terminal directly
   process.stderr.write(question);
   
-  // Read directly from CON (Windows keyboard device) — bypasses git hook stdin!
   try {
-    const result = spawnSync("powershell", [
-      "-Command",
-      `$ans = Read-Host; Write-Output $ans`
-    ], {
-      stdio: ['inherit', 'pipe', 'inherit'],
-      timeout: 30000
-    });
-    const answer = result.stdout.toString().trim();
-    return answer;
+    const fd = fs.openSync("\\\\.\\CON", "r");
+    const buffer = Buffer.alloc(1024);
+    const bytesRead = fs.readSync(fd, buffer, 0, 1024);
+    fs.closeSync(fd);
+    
+    return buffer.toString("utf8", 0, bytesRead).trim() || "y";
   } catch (e) {
-    return "y"; // default to yes if input fails
+    return "y";
   }
 }
 

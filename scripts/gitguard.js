@@ -53,8 +53,8 @@ async function commitFlow() {
       process.exit(0);
     }
 
-    // SKILL 1 — Review Code
-    console.log("\n🔍 Skill 1: Reviewing your code...\n");
+    // SKILL 1 — Code Review
+    console.log("\n🔍 Skill 1: Code Review...\n");
     const reviewPrompt = `
 You are GitGuard, an AI git assistant.
 Review this staged code diff for bugs, console.logs, API keys, and security issues.
@@ -97,14 +97,14 @@ ${diff}
     if (reviewResult.includes("VERDICT: BLOCK")) {
       const override = askUser("\n🚫 Critical issues detected! Commit anyway? (y/N): ");
       if (override.toLowerCase() !== "y") {
-        console.log("\n🚫 Please fix the issues above before committing!\n");
+        console.log("\n🚫 Commit cancelled. Please fix the issues above.\n");
         process.exit(1);
       }
-      console.log("\n⚠️ Committing despite critical issues...\n");
+      console.log("\n⚠️ Proceeding despite critical issues...\n");
     }
 
-    // SKILL 2 — Auto Commit Message
-    console.log("\n✨ Skill 2: Writing your commit message...\n");
+    // SKILL 2 — Commit Message
+    console.log("✨ Skill 2: Commit Message...\n");
     const msgPrompt = `
 You are a senior developer.
 Given a git diff, generate a concise, professional commit message.
@@ -172,9 +172,10 @@ async function pushFlow() {
     const fileCount = files ? files.split("\n").length : 0;
 
     console.log(`\n📍 Branch: ${branch}`);
-    console.log(`📁 Files being pushed: ${fileCount}\n`);
+    console.log(`📁 Files:  ${fileCount}`);
 
-    // SKILL 3 — Warn Risky Ops
+    // SKILL 3 — Risk Analysis
+    console.log("\n🛰️ Skill 3: Risk Analysis...\n");
     const riskPrompt = `
 You are GitGuard, an AI git assistant.
 Analyse this push operation for risks.
@@ -223,10 +224,10 @@ if (mode === "pre-commit") {
   pushFlow();
 } else {
   console.log(`
-🛡️  GitGuard — AI Git Assistant
+🛡️ GitGuard — AI Git Assistant
 
 Usage:
-  node scripts/gitguard.js pre-commit   → Review + auto commit message
-  node scripts/gitguard.js pre-push     → Check for risky push operations
+  node scripts/gitguard.js pre-commit   → Code Review + Commit Message
+  node scripts/gitguard.js pre-push     → Risk Analysis
   `);
 }

@@ -121,9 +121,21 @@ Output exactly in this format:
     const msgResult = await callGroq(msgPrompt);
     console.log(msgResult);
 
-    // Extract suggested message
-    const match = msgResult.match(/"([^"]+)"/);
-    const autoMessage = match ? match[1] : "Update code";
+    // Extract suggested message (more robustly)
+    let autoMessage = "Update code";
+    const quoteMatch = msgResult.match(/"([^"]+)"/);
+    if (quoteMatch) {
+      autoMessage = quoteMatch[1];
+    } else {
+      // Fallback: look for the line after the star icon or just the first non-empty line
+      const lines = msgResult.split("\n").map(l => l.trim()).filter(l => l.length > 0);
+      const suggestIdx = lines.findIndex(l => l.includes("Suggested commit message"));
+      if (suggestIdx !== -1 && lines[suggestIdx + 1]) {
+        autoMessage = lines[suggestIdx + 1].replace(/"/g, "");
+      } else if (lines.length > 0) {
+        autoMessage = lines[0].replace(/"/g, "");
+      }
+    }
 
     // Ask Y/N using PowerShell — works on Windows even inside git hooks!
     const answer = askUser("\n👉 Use this commit message? (Y/n): ");

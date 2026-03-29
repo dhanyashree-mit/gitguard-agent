@@ -162,7 +162,8 @@ End with exactly "VERDICT: PASS" or "VERDICT: BLOCK".
     }
   }
 
-  execSync("git push", { stdio: 'inherit' });
+  //execSync("git push", { stdio: 'inherit' });
+  execSync("git push --no-verify", { stdio: 'inherit' });
   console.log("\n✅ Pushed successfully!\n");
 }
 

@@ -4,6 +4,7 @@
   "description": "AI-powered Git assistant using gitagent standard",
   "main": "scripts/gitguard.js",
   "scripts": {
+    "setup": "node scripts/setup.js",
     "validate": "npx gitagent validate",
     "info": "npx gitagent info"
   },

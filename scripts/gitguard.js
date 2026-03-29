@@ -3,22 +3,21 @@ const readline = require("readline");
 
 const mode = process.argv[2];
 
-async function callClaude(prompt) {
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
+async function callGroq(prompt) {
+  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "x-api-key": process.env.ANTHROPIC_API_KEY,
-      "anthropic-version": "2023-06-01"
+      "Authorization": `Bearer ${process.env.GROQ_API_KEY}`
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-5-20250929",
+      model: "llama-3.3-70b-versatile",
       max_tokens: 1000,
       messages: [{ role: "user", content: prompt }]
     })
   });
   const data = await response.json();
-  return data.content[0].text;
+  return data.choices[0].message.content;
 }
 
 function run(cmd) {
@@ -52,7 +51,7 @@ Diff:
 ${diff}
   `;
 
-  const reviewResult = await callClaude(reviewPrompt);
+  const reviewResult = await callGroq(reviewPrompt);
   console.log(reviewResult);
 
   if (reviewResult.includes("VERDICT: BLOCK")) {
@@ -79,7 +78,7 @@ Output format:
 - filename: description
   `;
 
-  const msgResult = await callClaude(msgPrompt);
+  const msgResult = await callGroq(msgPrompt);
   console.log(msgResult);
 
   // Ask user to confirm
@@ -139,7 +138,7 @@ End with exactly "VERDICT: PASS" or "VERDICT: BLOCK".
 Only BLOCK for Critical issues.
   `;
 
-  const riskResult = await callClaude(riskPrompt);
+  const riskResult = await callGroq(riskPrompt);
   console.log(riskResult);
 
   if (riskResult.includes("VERDICT: BLOCK")) {

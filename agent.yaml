@@ -1,0 +1,15 @@
+spec_version: "0.1.0"
+name: gitguard-agent
+version: 0.1.0
+description: "AI-powered Git assistant that reviews code, writes commit messages, and warns risky operations automatically"
+model:
+  preferred: claude-sonnet-4-5-20250929
+skills:
+  - review-code
+  - auto-commit-msg
+  - warn-risky-ops
+tags:
+  - git
+  - productivity
+  - developer-tools
+  - hackathon

@@ -1,0 +1,13 @@
+{
+  "name": "gitguard-agent",
+  "version": "0.1.0",
+  "description": "AI-powered Git assistant using gitagent standard",
+  "main": "scripts/gitguard.js",
+  "scripts": {
+    "validate": "npx gitagent validate",
+    "info": "npx gitagent info"
+  },
+  "dependencies": {
+    "gitclaw": "latest"
+  }
+}

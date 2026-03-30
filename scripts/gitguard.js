@@ -2,7 +2,6 @@ const { execSync, spawnSync } = require("child_process");
 const fs = require("fs");
 
 const mode = process.argv[2];
-const ZERO_SHA = "0000000000000000000000000000000000000000";
 
 async function callGroq(prompt) {
   const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -163,48 +162,6 @@ Output exactly in this format:
 async function pushFlow() {
   try {
     const branch = run("git branch --show-current");
-
-    // Read stdin to detect real force push
-    let isForcePush = process.env.GIT_PUSH_OPTION_COUNT > 0;
-    
-    // Read from stdin (one line per ref: <local ref> <local sha1> <remote ref> <remote sha1>)
-    const stdin = await new Promise((resolve) => {
-      let data = "";
-      if (process.stdin.isTTY) return resolve("");
-      process.stdin.setEncoding('utf-8');
-      process.stdin.on('data', chunk => data += chunk);
-      process.stdin.on('end', () => resolve(data));
-      setTimeout(() => resolve(data), 100);
-    });
-
-    if (stdin) {
-      const lines = stdin.trim().split('\n');
-      for (const line of lines) {
-        const parts = line.split(' ');
-        if (parts.length < 4) continue;
-        const [lref, lsha, rref, rsha] = parts;
-        
-        if (rsha !== ZERO_SHA) {
-          // If remote exists (not all zeros)
-          if (lsha === ZERO_SHA) {
-            // Case: Deleting a remote ref is always destructive
-            isForcePush = true;
-            break;
-          }
-          
-          try {
-            // Case: Check if history is being rewritten (non-fast-forward)
-            // git merge-base returns 0 if rsha is an ancestor of lsha
-            execSync(`git merge-base --is-ancestor ${rsha} ${lsha}`);
-          } catch (e) {
-            // If merge-base fails (nonzero exit), it's either not an ancestor or a history rewrite
-            isForcePush = true;
-            break;
-          }
-        }
-      }
-    }
-
     const files = run("git diff origin/main...HEAD --name-only");
     const fileCount = files ? files.split("\n").length : 0;
 
@@ -221,7 +178,7 @@ Use severity levels: 🔴 Critical, 🟡 Warning, 🟢 Tip
 Details:
 - Branch: ${branch}
 - Files changed: ${fileCount}
-- Force push detected: ${isForcePush ? "yes" : "no"}
+- Force push detected: ${process.env.GIT_PUSH_OPTION_COUNT > 0 ? "yes" : "no"}
 
 Check ONLY for these critical risks:
 1. Force push (--force or -f flag) to main/master/production — this is the ONLY reason to BLOCK

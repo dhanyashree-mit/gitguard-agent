@@ -4,6 +4,14 @@ const fs = require("fs");
 const mode = process.argv[2];
 const ZERO_SHA = "0000000000000000000000000000000000000000";
 
+// ANSI Color Codes
+const RESET = "\x1b[0m";
+const BOLD = "\x1b[1m";
+const RED = "\x1b[31m";
+const GREEN = "\x1b[32m";
+const YELLOW = "\x1b[33m";
+const CYAN = "\x1b[36m";
+
 async function callGroq(prompt) {
   const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
@@ -53,7 +61,7 @@ async function reviewFlow() {
     }
 
     // SKILL 1 — Code Review
-    console.log("\n🔍 Skill 1: Code Review...\n");
+    console.log(`\n${BOLD}${YELLOW}🔍 Skill 1: Code Review...${RESET}\n`);
     const reviewPrompt = `
 You are GitGuard, an AI code reviewer. Your goal is to provide a brief but high-quality review of the staged changes.
 
@@ -85,10 +93,19 @@ ${diff}
   `;
 
     const reviewResult = await callGroq(reviewPrompt);
-    console.log(reviewResult);
+    
+    // Colorize the result
+    const coloredReview = reviewResult
+      .replace(/VERDICT: PASS/g, `${BOLD}${GREEN}VERDICT: PASS${RESET}`)
+      .replace(/VERDICT: BLOCK/g, `${BOLD}${RED}VERDICT: BLOCK${RESET}`)
+      .replace(/\[🚫 CRITICAL\]/g, `${BOLD}${RED}[🚫 CRITICAL]${RESET}`)
+      .replace(/\[⚠️ WARNING\]/g, `${BOLD}${YELLOW}[⚠️ WARNING]${RESET}`)
+      .replace(/\[💡 SUGGESTION\]/g, `${BOLD}${CYAN}[💡 SUGGESTION]${RESET}`);
+
+    console.log(coloredReview);
 
     if (reviewResult.includes("VERDICT: BLOCK")) {
-      const override = askUser("\n🚫 Critical issues detected! Commit anyway? (y/N): ");
+      const override = askUser(`\n${BOLD}${RED}🚫 Critical issues detected! Commit anyway? (y/N): ${RESET}`);
       if (override.toLowerCase() !== "y") {
         console.log("\n🚫 Commit cancelled. Please fix the issues above.\n");
         process.exitCode = 1;
@@ -110,7 +127,7 @@ async function messageFlow(msgFile) {
     if (!diff) return;
 
     // SKILL 2 — Commit Message
-    console.log("✨ Skill 2: Commit Message...\n");
+    console.log(`${BOLD}${YELLOW}✨ Skill 2: Commit Message...${RESET}\n`);
     const msgPrompt = `
 You are a senior developer.
 Given a git diff, generate a concise, professional commit message.
@@ -134,7 +151,7 @@ Output exactly in this format:
   `;
 
     const msgResult = await callGroq(msgPrompt);
-    console.log(msgResult);
+    console.log(msgResult.replace(/✨ Suggested commit message:/g, `${BOLD}${GREEN}✨ Suggested commit message:${RESET}`));
 
     // Extract suggested message
     let autoMessage = "Update code";
@@ -152,7 +169,7 @@ Output exactly in this format:
     }
 
     // Restored Interactivity for Commit Message
-    const answer = askUser("\n👉 Use this commit message? (Y/n): ");
+    const answer = askUser(`\n${BOLD}${CYAN}👉 Use this commit message? (Y/n): ${RESET}`);
     console.log(""); 
 
     if (answer.toLowerCase() === "y") {
@@ -237,11 +254,11 @@ async function pushFlow() {
     const files = run("git diff origin/main...HEAD --name-only");
     const fileCount = files ? files.split("\n").length : 0;
 
-    console.log(`\n📍 Branch: ${branch}`);
-    console.log(`📁 Files:  ${fileCount}`);
+    console.log(`\n${BOLD}${CYAN}📍 Branch:${RESET} ${branch}`);
+    console.log(`${BOLD}${CYAN}📁 Files:${RESET}  ${fileCount}`);
 
     // SKILL 3 — Risk Analysis
-    console.log("\n🛰️ Skill 3: Risk Analysis...\n");
+    console.log(`\n${BOLD}${YELLOW}🛰️ Skill 3: Risk Analysis...${RESET}\n`);
     const riskPrompt = `
 You are GitGuard, an AI git assistant.
 Analyse this push operation for risks.
@@ -263,10 +280,19 @@ End with exactly "VERDICT: PASS" or "VERDICT: BLOCK".
   `;
 
     const riskResult = await callGroq(riskPrompt);
-    console.log(riskResult);
+    
+    // Colorize the risk result
+    const coloredRisk = riskResult
+      .replace(/VERDICT: PASS/g, `${BOLD}${GREEN}VERDICT: PASS${RESET}`)
+      .replace(/VERDICT: BLOCK/g, `${BOLD}${RED}VERDICT: BLOCK${RESET}`)
+      .replace(/🔴 Critical/g, `${BOLD}${RED}🔴 Critical${RESET}`)
+      .replace(/🟡 Warning/g, `${BOLD}${YELLOW}🟡 Warning${RESET}`)
+      .replace(/🟢 Tip/g, `${BOLD}${GREEN}🟢 Tip${RESET}`);
+
+    console.log(coloredRisk);
 
     if (riskResult.includes("VERDICT: BLOCK")) {
-      const answer = askUser("\n⚠️  Risky operation detected! Push anyway? (y/N): ");
+      const answer = askUser(`\n${BOLD}${RED}⚠️  Risky operation detected! Push anyway? (y/N): ${RESET}`);
       console.log("");
       if (answer.toLowerCase() !== "y") {
         console.log("\n🚫 Push cancelled. Stay safe! 🛡️\n");

@@ -145,11 +145,6 @@ export GROQ_API_KEY="your-groq-api-key-here"
 npm run setup
 ```
 
-*Note for Mac/Linux: You may need to make the hooks executable:*
-```bash
-chmod +x .git/hooks/*
-```
-
 **That's it! GitGuard is now protecting your repository. 🎉**
 
 ---
@@ -249,16 +244,4 @@ MIT © Dhanyashree
 
 > *"I live inside your repository and watch every commit and push — giving you instant feedback before mistakes reach production."*
 > — GitGuard 🛡️
-(https://groq.com) — Free, fast AI inference
-- [Llama 3.3 70B](https://groq.com) — The AI model powering GitGuard
-
----
-
-## 📄 License
-
-MIT © Dhanyashree
-
----
-
-
 

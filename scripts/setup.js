@@ -14,6 +14,10 @@ try {
     path.join(__dirname, "../hooks/pre-push"),
     path.join(__dirname, "../.git/hooks/pre-push")
   );
+  fs.copyFileSync(
+    path.join(__dirname, "../hooks/prepare-commit-msg"),
+    path.join(__dirname, "../.git/hooks/prepare-commit-msg")
+  );
   console.log("✅ Git hooks installed!");
 } catch (e) {
   console.log("❌ Hook installation failed:", e.message);

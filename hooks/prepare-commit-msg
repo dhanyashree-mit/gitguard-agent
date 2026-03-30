@@ -1,0 +1,2 @@
+#!/bin/sh
+node scripts/gitguard.js prepare-commit-msg "$1"

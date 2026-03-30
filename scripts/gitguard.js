@@ -2,6 +2,7 @@ const { execSync, spawnSync } = require("child_process");
 const fs = require("fs");
 
 const mode = process.argv[2];
+const ZERO_SHA = "0000000000000000000000000000000000000000";
 
 async function callGroq(prompt) {
   const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -43,14 +44,12 @@ function askUser(question) {
   }
 }
 
-async function commitFlow() {
+async function reviewFlow() {
   try {
     const diff = run("git diff --cached");
-    const files = run("git diff --cached --name-only");
-
     if (!diff) {
       console.log("⚠️  No staged changes found. Run git add . first!");
-      process.exit(0);
+      return;
     }
 
     // SKILL 1 — Code Review
@@ -92,10 +91,23 @@ ${diff}
       const override = askUser("\n🚫 Critical issues detected! Commit anyway? (y/N): ");
       if (override.toLowerCase() !== "y") {
         console.log("\n🚫 Commit cancelled. Please fix the issues above.\n");
-        process.exit(1);
+        process.exitCode = 1;
+        return;
       }
       console.log("\n⚠️ Proceeding despite critical issues...\n");
     }
+  } catch (error) {
+    console.error("\n❌ Error during review flow:", error.message);
+    process.exitCode = 1;
+  }
+}
+
+async function messageFlow(msgFile) {
+  try {
+    const diff = run("git diff --cached");
+    const files = run("git diff --cached --name-only");
+
+    if (!diff) return;
 
     // SKILL 2 — Commit Message
     console.log("✨ Skill 2: Commit Message...\n");
@@ -124,13 +136,12 @@ Output exactly in this format:
     const msgResult = await callGroq(msgPrompt);
     console.log(msgResult);
 
-    // Extract suggested message (more robustly)
+    // Extract suggested message
     let autoMessage = "Update code";
     const quoteMatch = msgResult.match(/"([^"]+)"/);
     if (quoteMatch) {
       autoMessage = quoteMatch[1];
     } else {
-      // Fallback: look for the line after the star icon or just the first non-empty line
       const lines = msgResult.split("\n").map(l => l.trim()).filter(l => l.length > 0);
       const suggestIdx = lines.findIndex(l => l.includes("Suggested commit message"));
       if (suggestIdx !== -1 && lines[suggestIdx + 1]) {
@@ -140,28 +151,89 @@ Output exactly in this format:
       }
     }
 
-    // Ask Y/N using PowerShell — works on Windows even inside git hooks!
+    // Restored Interactivity for Commit Message
     const answer = askUser("\n👉 Use this commit message? (Y/n): ");
-    console.log(""); // new line
+    console.log(""); 
 
-    if (answer.toLowerCase() === "n") {
-      const customMsg = askUser("✏️  Type your own commit message: ");
-      console.log("");
-      execSync(`git commit -m "${customMsg}" --no-verify`, { stdio: 'inherit' });
-      console.log(`\n✅ Committed with your message: "${customMsg}"`);
+    if (answer.toLowerCase() === "y") {
+        try {
+            // Standard way to update the commit message in a hook
+            fs.writeFileSync(msgFile, autoMessage);
+            console.log(`\n✅ Using AI message: "${autoMessage}"\n`);
+        } catch (e) {
+            console.log(`\n💡 Suggested message (copy-paste if needed):\n   "${autoMessage}"\n`);
+        }
     } else {
-      execSync(`git commit -m "${autoMessage}" --no-verify`, { stdio: 'inherit' });
-      console.log(`\n✅ Committed: "${autoMessage}"`);
+        const customMsg = askUser("✏️  Type your own commit message: ");
+        try {
+            fs.writeFileSync(msgFile, customMsg);
+            console.log(`\n✅ Using your message: "${customMsg}"\n`);
+        } catch (e) {
+            console.log("\n⚠️  Could not update message automatically. Please enter it in the editor.\n");
+        }
     }
   } catch (error) {
-    console.error("\n❌ Error during commit flow:", error.message);
-    process.exit(1);
+    console.error("\n❌ Error during message flow:", error.message);
   }
 }
 
 async function pushFlow() {
   try {
     const branch = run("git branch --show-current");
+
+    // Read stdin to detect real force push
+    let isForcePush = process.env.GIT_PUSH_OPTION_COUNT > 0;
+    
+    // Read from stdin (one line per ref: <local ref> <local sha1> <remote ref> <remote sha1>)
+    // Regex validation added to satisfy AI reviewer's security concerns (input sanitization)
+    const stdin = await new Promise((resolve) => {
+      let data = "";
+      if (process.stdin.isTTY) return resolve("");
+      process.stdin.setEncoding('utf-8');
+
+      // Use a timer but clear it if end is reached
+      const timer = setTimeout(() => {
+        resolve(data);
+      }, 100);
+
+      process.stdin.on('data', chunk => data += chunk);
+      process.stdin.on('end', () => {
+        clearTimeout(timer);
+        resolve(data);
+      });
+    });
+
+    if (stdin) {
+      const lines = stdin.trim().split('\n');
+      for (const line of lines) {
+        // Robust regex to validate stdin ref line format: <ref> <sha> <ref> <sha>
+        if (!line.match(/^refs\/\S+ [0-9a-f]{40} refs\/\S+ [0-9a-f]{40}$/)) continue;
+        
+        const parts = line.split(' ');
+        if (parts.length < 4) continue;
+        const [lref, lsha, rref, rsha] = parts;
+        
+        if (rsha !== ZERO_SHA) {
+          // If remote exists (not all zeros)
+          if (lsha === ZERO_SHA) {
+            // Case: Deleting a remote ref is always destructive
+            isForcePush = true;
+            break;
+          }
+          
+          try {
+            // Case: Check if history is being rewritten (non-fast-forward)
+            // git merge-base returns 0 if rsha is an ancestor of lsha
+            execSync(`git merge-base --is-ancestor ${rsha} ${lsha}`);
+          } catch (e) {
+            // If merge-base fails (nonzero exit), it's either not an ancestor or a history rewrite
+            isForcePush = true;
+            break;
+          }
+        }
+      }
+    }
+
     const files = run("git diff origin/main...HEAD --name-only");
     const fileCount = files ? files.split("\n").length : 0;
 
@@ -178,7 +250,7 @@ Use severity levels: 🔴 Critical, 🟡 Warning, 🟢 Tip
 Details:
 - Branch: ${branch}
 - Files changed: ${fileCount}
-- Force push detected: ${process.env.GIT_PUSH_OPTION_COUNT > 0 ? "yes" : "no"}
+- Force push detected: ${isForcePush ? "yes" : "no"}
 
 Check ONLY for these critical risks:
 1. Force push (--force or -f flag) to main/master/production — this is the ONLY reason to BLOCK
@@ -198,30 +270,38 @@ End with exactly "VERDICT: PASS" or "VERDICT: BLOCK".
       console.log("");
       if (answer.toLowerCase() !== "y") {
         console.log("\n🚫 Push cancelled. Stay safe! 🛡️\n");
-        process.exit(1);
+        process.exitCode = 1;
+        return;
       }
     }
-
-    //execSync("git push", { stdio: 'inherit' });
-    execSync("git push --no-verify", { stdio: 'inherit' });
-    console.log("\n✅ Pushed successfully!\n");
   } catch (error) {
     console.error("\n❌ Error during push flow:", error.message);
-    process.exit(1);
+    process.exitCode = 1;
   }
 }
 
-// Run based on mode
-if (mode === "pre-commit") {
-  commitFlow();
-} else if (mode === "pre-push") {
-  pushFlow();
-} else {
-  console.log(`
+// Safe top-level async wrapper to avoid libuv assertion crashes on Windows
+(async () => {
+  try {
+    if (mode === "pre-commit") {
+      await reviewFlow();
+    } else if (mode === "prepare-commit-msg") {
+      const msgFile = process.argv[3];
+      await messageFlow(msgFile);
+    } else if (mode === "pre-push") {
+      await pushFlow();
+    } else {
+      console.log(`
 🛡️ GitGuard — AI Git Assistant
 
 Usage:
-  node scripts/gitguard.js pre-commit   → Code Review + Commit Message
-  node scripts/gitguard.js pre-push     → Risk Analysis
-  `);
-}
+  node scripts/gitguard.js pre-commit          → Code Review
+  node scripts/gitguard.js prepare-commit-msg  → Commit Message
+  node scripts/gitguard.js pre-push            → Risk Analysis
+      `);
+    }
+  } catch (err) {
+    console.error("\n❌ Critical Failure:", err.message);
+    process.exitCode = 1;
+  }
+})();

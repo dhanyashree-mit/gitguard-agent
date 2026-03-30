@@ -24,7 +24,9 @@ No extra commands. No extra steps. Just `git commit` and `git push` — GitGuard
 ## 🎬 Demo
 
 ### Skill 1 — Code Review catches a hardcoded password:
-```
+```bash
+$ git commit
+
 🛡️  GitGuard is checking your code...
 
 🔍 Skill 1: Code Review...
@@ -38,11 +40,15 @@ Action: Use environment variables instead
 
 VERDICT: BLOCK
 
+🚫 Critical issues detected! Commit anyway? (y/N): n
+
 🚫 Commit cancelled. Please fix the issues above.
 ```
 
 ### Skill 2 — Auto writes your commit message:
-```
+```bash
+$ git commit
+
 ✨ Skill 2: Commit Message...
 
 ✨ Suggested commit message:
@@ -58,7 +64,9 @@ VERDICT: BLOCK
 ```
 
 ### Skill 3 — Blocks a force push:
-```
+```bash
+$ git push
+
 🛡️  GitGuard is checking your push...
 
 📍 Branch: main

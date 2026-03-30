@@ -26,3 +26,14 @@ Output format:
 📝 What changed:
 - filename.js: one line description of change
 - filename2.js: one line description of change
+
+Examples of good commit messages:
+- "feat(auth): add JWT token validation"
+- "fix(api): handle null response from user endpoint"
+- "refactor(hooks): simplify pre-commit logic"
+
+Examples of BAD commit messages (never write these):
+- "fix stuff"
+- "update"
+- "changes"
+- "WIP"

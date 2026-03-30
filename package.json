@@ -10,5 +10,7 @@
   },
   "dependencies": {
     "gitclaw": "latest"
-  }
+  },
+  "author": "Dhanyashree",
+  "license": "MIT"
 }

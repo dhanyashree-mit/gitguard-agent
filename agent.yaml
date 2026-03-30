@@ -3,7 +3,8 @@ name: gitguard-agent
 version: 0.1.0
 description: "AI-powered Git assistant that reviews code, writes commit messages, and warns risky operations automatically"
 model:
-  preferred: claude-sonnet-4-5-20250929
+preferred: llama-3.3-70b-versatile
+provider: groq
 skills:
   - review-code
   - auto-commit-msg

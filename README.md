@@ -65,7 +65,7 @@ $ git commit
 
 ### Skill 3 — Blocks a force push:
 ```bash
-$ git push
+$ git push --force
 
 🛡️  GitGuard is checking your push...
 

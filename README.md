@@ -18,6 +18,24 @@ GitGuard is a **gitagent-standard AI agent** that hooks directly into your Git w
 
 No extra commands. No extra steps. Just `git commit` and `git push` — GitGuard does the rest.
 
+## 🚀 Why GitGuard?
+
+Unlike traditional tools that require manual setup and separate configurations,
+GitGuard combines code review, commit intelligence, and risk protection into a single autonomous agent.
+
+- No config files
+- No multiple tools
+- No extra commands
+
+Just Git — enhanced with intelligence.
+
+## 🧠 What Makes GitGuard Smart?
+
+- Diff-aware analysis (understands what changed, not just code)
+- Severity-based decision system (Critical / Warning / Suggestion)
+- Context-aware reasoning (script vs production code)
+- Human-like commit messages using semantic understanding
+
 ---
 
 ## 🎬 Demo

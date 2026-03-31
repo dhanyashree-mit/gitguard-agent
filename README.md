@@ -3,9 +3,8 @@
 > An AI-powered Git assistant that lives inside your repository — reviewing code, writing commit messages, and blocking risky operations automatically.
 
 [![gitagent](https://img.shields.io/badge/gitagent-0.1.0-blue)](https://gitagent.sh)
-[![license](https://img.shields.io/badge/license-MIT-green)](#license)
 [![model](https://img.shields.io/badge/model-llama--3.3--70b--versatile-orange)](https://groq.com)
-[![platform](https://img.shields.io/badge/platform-Windows%20%7C%20Mac%20%7C%20Linux-lightgrey)](#tech-stack)
+
 
 ---
 

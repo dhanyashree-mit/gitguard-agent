@@ -2,10 +2,9 @@
 
 > An AI-powered Git assistant that lives inside your repository — reviewing code, writing commit messages, and blocking risky operations automatically.
 
-![gitagent](https://img.shields.io/badge/gitagent-0.1.0-blue)
-![license](https://img.shields.io/badge/license-MIT-green)
-![model](https://img.shields.io/badge/model-llama--3.3--70b--versatile-orange)
-![platform](https://img.shields.io/badge/platform-Windows%20%7C%20Mac%20%7C%20Linux-lightgrey)
+[![gitagent](https://img.shields.io/badge/gitagent-0.1.0-blue)](https://gitagent.sh)
+[![model](https://img.shields.io/badge/model-llama--3.3--70b--versatile-orange)](https://groq.com)
+
 
 ---
 
@@ -24,7 +23,9 @@ No extra commands. No extra steps. Just `git commit` and `git push` — GitGuard
 ## 🎬 Demo
 
 ### Skill 1 — Code Review catches a hardcoded password:
-```
+```bash
+$ git commit
+
 🛡️  GitGuard is checking your code...
 
 🔍 Skill 1: Code Review...
@@ -38,11 +39,15 @@ Action: Use environment variables instead
 
 VERDICT: BLOCK
 
+🚫 Critical issues detected! Commit anyway? (y/N): n
+
 🚫 Commit cancelled. Please fix the issues above.
 ```
 
 ### Skill 2 — Auto writes your commit message:
-```
+```bash
+$ git commit
+
 ✨ Skill 2: Commit Message...
 
 ✨ Suggested commit message:
@@ -58,7 +63,9 @@ VERDICT: BLOCK
 ```
 
 ### Skill 3 — Blocks a force push:
-```
+```bash
+$ git push --force
+
 🛡️  GitGuard is checking your push...
 
 📍 Branch: main
@@ -145,11 +152,6 @@ export GROQ_API_KEY="your-groq-api-key-here"
 npm run setup
 ```
 
-*Note for Mac/Linux: You may need to make the hooks executable:*
-```bash
-chmod +x .git/hooks/*
-```
-
 **That's it! GitGuard is now protecting your repository. 🎉**
 
 ---
@@ -202,8 +204,8 @@ Uses `git merge-base` to detect history overwrites reliably even without the `--
 
 | Component | Technology |
 |---|---|
-| Agent Standard | [gitagent](https://github.com/open-gitagent/gitagent) |
-| Runtime | [gitclaw](https://github.com/open-gitagent/gitclaw) |
+| Agent Standard | [gitagent](https://gitagent.sh) |
+| Runtime | [gitclaw](https://gitagent.sh) |
 | AI Model | Llama 3.3 70B Versatile via [Groq](https://groq.com) |
 | Trigger Mechanism | Git Hooks (`pre-commit`, `prepare-commit-msg`, `pre-push`) |
 | Language | Node.js |
@@ -235,7 +237,7 @@ git push --no-verify     # Skip hooks for this push
 
 ## 🤝 Built With
 
-- [gitagent standard](https://github.com/open-gitagent/gitagent) — Agent definition format
+- [gitagent standard](https://gitagent.sh) — Agent definition format
 - [Groq](https://groq.com) — Fast AI inference
 - [Llama 3.3 70B Versatile](https://groq.com) — The AI model powering GitGuard
 
@@ -249,16 +251,4 @@ MIT © Dhanyashree
 
 > *"I live inside your repository and watch every commit and push — giving you instant feedback before mistakes reach production."*
 > — GitGuard 🛡️
-(https://groq.com) — Free, fast AI inference
-- [Llama 3.3 70B](https://groq.com) — The AI model powering GitGuard
 
----
-
-## 📄 License
-
-MIT © Dhanyashree
-
----
-
-> *"I live inside your repository and watch every commit and push — giving you instant feedback before mistakes reach production."*
-> — GitGuard 🛡️

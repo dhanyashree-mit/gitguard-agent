@@ -18,6 +18,17 @@ try {
     path.join(__dirname, "../hooks/prepare-commit-msg"),
     path.join(__dirname, "../.git/hooks/prepare-commit-msg")
   );
+  
+  // Set execution permissions on Unix
+  if (process.platform !== "win32") {
+    try {
+      execSync("chmod +x .git/hooks/pre-commit .git/hooks/pre-push .git/hooks/prepare-commit-msg");
+      console.log("✅ Hook permissions set!");
+    } catch (e) {
+      console.log("⚠️  Could not set executable permissions. Please run: chmod +x .git/hooks/*");
+    }
+  }
+  
   console.log("✅ Git hooks installed!");
 } catch (e) {
   console.log("❌ Hook installation failed:", e.message);

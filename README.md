@@ -111,6 +111,15 @@ gitguard-agent/
 ```
 
 ---
+## ⚙️ Runtime
+
+GitGuard follows the gitagent standard and is implemented using a custom Node.js runtime for seamless integration with Git hooks.
+
+While gitclaw is included as a dependency, GitGuard directly executes its skills through Git hooks (`pre-commit`, `prepare-commit-msg`, `pre-push`) for real-time interaction inside the developer workflow.
+
+The architecture remains fully compatible with gitclaw and can be adapted to run using the gitclaw SDK.
+
+---
 
 ## ⚡ Quick Start
 
@@ -205,7 +214,7 @@ Uses `git merge-base` to detect history overwrites reliably even without the `--
 | Component | Technology |
 |---|---|
 | Agent Standard | [gitagent](https://gitagent.sh) |
-| Runtime | [gitclaw](https://gitagent.sh) |
+| Runtime | Custom Node.js (Git hooks), gitclaw-compatible |
 | AI Model | Llama 3.3 70B Versatile via [Groq](https://groq.com) |
 | Trigger Mechanism | Git Hooks (`pre-commit`, `prepare-commit-msg`, `pre-push`) |
 | Language | Node.js |

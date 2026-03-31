@@ -11,6 +11,9 @@ const RED = "\x1b[31m";
 const GREEN = "\x1b[32m";
 const YELLOW = "\x1b[33m";
 const CYAN = "\x1b[36m";
+const BG_RED = "\x1b[41m";
+const BG_GREEN = "\x1b[42m";
+const FG_BLACK = "\x1b[30m";
 
 async function callGroq(prompt) {
   const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -106,15 +109,47 @@ ${diff}
     let fixesApplied = false;
     const stagedFiles = run("git diff --cached --name-only").split("\n").filter(Boolean);
 
+    // Track BLOCK issues
+    const totalBlocks = (reviewResult.match(/🚫/g) || []).length;
+    let blocksFixed = 0;
+
     // 1. Pattern-based Auto-fixes (Deterministic)
     const fixPatterns = [
       { name: "console.log", regex: /console\.log\(.*\);?/g },
       { name: "debugger", regex: /debugger;?/g }
     ];
 
+    function applyInFileMarkers(file, oldContent, newContent) {
+      const oldLines = oldContent.split(/\r?\n/);
+      const newLines = newContent.split(/\r?\n/);
+      
+      let prefix = 0;
+      while (prefix < oldLines.length && prefix < newLines.length && oldLines[prefix] === newLines[prefix]) prefix++;
+      
+      let suffix = 0;
+      while (suffix < oldLines.length - prefix && suffix < newLines.length - prefix && 
+             oldLines[oldLines.length - 1 - suffix] === newLines[newLines.length - 1 - suffix]) suffix++;
+             
+      const before = oldLines.slice(prefix, oldLines.length - suffix).join("\n");
+      const after = newLines.slice(prefix, newLines.length - suffix).join("\n");
+      
+      const marked = [
+        ...oldLines.slice(0, prefix),
+        `<<<<<<< HEAD`,
+        before,
+        `=======`,
+        after,
+        `>>>>>>> SUGGESTION`,
+        ...oldLines.slice(oldLines.length - suffix)
+      ].join("\n");
+      
+      fs.writeFileSync(file, marked);
+    }
+
     for (const file of stagedFiles) {
       if (!fs.existsSync(file)) continue;
-      let content = fs.readFileSync(file, "utf8");
+      const originalContent = fs.readFileSync(file, "utf8");
+      let content = originalContent;
       let modified = false;
 
       for (const p of fixPatterns) {
@@ -124,17 +159,31 @@ ${diff}
           .filter(Boolean);
 
         if (matchingLines.length > 0) {
-          const answer = askUser(`\n${BOLD}${YELLOW}⚠️  ${p.name} detected in ${file} (line: ${matchingLines.join(", ")})${RESET}\n💡 Suggested Fix: Remove ${p.name} statements. Apply? (y/N): `);
+          console.log(`\n${BOLD}${YELLOW}⚠️  ${p.name} detected in ${file} (line: ${matchingLines.join(", ")})${RESET}`);
+          
+          const filteredLines = lines.filter(line => !line.match(p.regex));
+          const newContent = filteredLines.join("\n");
+          
+          applyInFileMarkers(file, content, newContent);
+          console.log(`${BOLD}${CYAN}📄 Markers injected: Check ${file} in your editor.${RESET}`);
+
+          const answer = askUser(`\n💡 Suggested Fix: Remove ${p.name} statements. Apply? (y/N): `);
+          
           if (answer.toLowerCase() === "y") {
-            const filteredLines = lines.filter(line => !line.match(p.regex));
-            content = filteredLines.join("\n");
+            content = newContent;
+            fs.writeFileSync(file, content);
             modified = true;
+            // Pattern fixes usually address BLOCK issues (console.log/debugger)
+            const matchesInReview = reviewResult.match(new RegExp(`🚫.*?${file.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "g"));
+            if (matchesInReview) blocksFixed += matchesInReview.length;
+          } else {
+            // Restore original content if user says no
+            fs.writeFileSync(file, content);
           }
         }
       }
 
       if (modified) {
-        fs.writeFileSync(file, content);
         run(`git add "${file}"`);
         fixesApplied = true;
         console.log(`${BOLD}${GREEN}✅ Removed debug statements in ${file}.${RESET}`);
@@ -156,11 +205,9 @@ ${diff}
       console.log(`${BOLD}Issue:${RESET} ${issue}`);
       console.log(`${BOLD}Fix:${RESET}   ${action}`);
 
-      const answer = askUser(`Apply this fix? (y/N): `);
-      if (answer.toLowerCase() === "y") {
-        console.log(`\n${BOLD}${YELLOW}✨ Generating fix for ${cleanFile}...${RESET}`);
-        const currentContent = fs.readFileSync(cleanFile, "utf8");
-        const fixPrompt = `
+      console.log(`\n${BOLD}${YELLOW}✨ Generating fix for ${cleanFile}...${RESET}`);
+      const currentContent = fs.readFileSync(cleanFile, "utf8");
+      const fixPrompt = `
 You are a senior developer. Apply the following fix to the file.
 File: ${cleanFile}
 Line: ${line}
@@ -178,18 +225,29 @@ Rules:
 - Return ONLY the raw code.
 `;
 
-        let fixedContent = await callGroq(fixPrompt);
-        // Clean up markdown blocks if AI ignored rules
-        fixedContent = fixedContent.replace(/^```[a-z]*\r?\n/i, "").replace(/\r?\n```$/g, "").trim();
+      let fixedContent = await callGroq(fixPrompt);
+      fixedContent = fixedContent.replace(/^```[a-z]*\r?\n/i, "").replace(/\r?\n```$/g, "").trim();
 
-        if (fixedContent && fixedContent.length > 10) {
+      if (fixedContent && fixedContent.length > 10) {
+        applyInFileMarkers(cleanFile, currentContent, fixedContent);
+        console.log(`${BOLD}${CYAN}📄 Markers injected: Check ${cleanFile} in your editor.${RESET}`);
+        
+        const apply = askUser(`Apply this fix? (y/N): `);
+
+        if (apply.toLowerCase() === "y") {
           fs.writeFileSync(cleanFile, fixedContent);
           run(`git add "${cleanFile}"`);
           console.log(`${BOLD}${GREEN}✅ Fix applied and re-staged.${RESET}`);
           fixesApplied = true;
+          if (severity.includes("🚫") || severity.includes("CRITICAL")) {
+            blocksFixed++;
+          }
         } else {
-          console.log(`${BOLD}${RED}❌ Failed to generate valid fix.${RESET}`);
+          // Revert markers
+          fs.writeFileSync(cleanFile, currentContent);
         }
+      } else {
+        console.log(`${BOLD}${RED}❌ Failed to generate valid fix.${RESET}`);
       }
     }
 
@@ -197,7 +255,8 @@ Rules:
       console.log(`\n${BOLD}${GREEN}✨ All fixes applied. Proceeding...${RESET}\n`);
     }
 
-    if (reviewResult.includes("VERDICT: BLOCK")) {
+    // Only block if there are remaining block issues
+    if (reviewResult.includes("VERDICT: BLOCK") && blocksFixed < totalBlocks) {
       const override = askUser(`\n${BOLD}${RED}🚫 Critical issues detected! Commit anyway? (y/N): ${RESET}`);
       if (override.toLowerCase() !== "y") {
         process.exitCode = 1;

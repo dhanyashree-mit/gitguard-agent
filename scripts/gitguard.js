@@ -239,14 +239,26 @@ async function pushFlow() {
           }
           
           try {
-            // Case: Check if history is being rewritten (non-fast-forward)
-            // git merge-base returns 0 if rsha is an ancestor of lsha
-            execSync(`git merge-base --is-ancestor ${rsha} ${lsha}`);
-          } catch (e) {
-            // If merge-base fails (nonzero exit), it's either not an ancestor or a history rewrite
-            isForcePush = true;
-            break;
-          }
+  // Verify both commits exist before checking ancestry
+  const lshaValid = run(`git cat-file -t ${lsha}`);
+  const rshaValid = run(`git cat-file -t ${rsha}`);
+
+  // Only check ancestry if both commits exist
+  if (lshaValid === "commit" && rshaValid === "commit") {
+    try {
+      execSync(`git merge-base --is-ancestor ${rsha} ${lsha}`, { 
+        stdio: 'pipe',
+        timeout: 5000 
+      });
+    } catch (ancestryError) {
+      // merge-base failed = history rewrite = force push
+      isForcePush = true;
+    }
+  }
+} catch (e) {
+  // commit doesn't exist — skip force push detection
+  // don't mark as force push just because commit is missing
+}
         }
       }
     }

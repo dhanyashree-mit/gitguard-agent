@@ -238,6 +238,7 @@ async function pushFlow() {
             break;
           }
           
+          
           try {
   // Verify both commits exist before checking ancestry
   const lshaValid = run(`git cat-file -t ${lsha}`);

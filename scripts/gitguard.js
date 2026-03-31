@@ -141,15 +141,16 @@ ${diff}
       }
     }
 
-    // 2. AI-powered Suggestions Fix
-    const issueRegex = /\[(.*?)\]\s+(.*?):(\d+)\s+-\s+(.*)\r?\n\s*Impact:\s+(.*)\r?\n\s*Action:\s+(.*)/gi;
+    // 2. AI-powered Suggestions Fix (Improved regex to catch both [🚫] and 🚫 formats)
+    const issueRegex = /(?:\[(.*?)\s*\]|(🚫|⚠️|💡))\s+(.*?):(\d+)\s+-\s+(.*)\r?\n\s*Impact:\s+(.*)\r?\n\s*Action:\s+(.*)/gi;
     let match;
     while ((match = issueRegex.exec(reviewResult)) !== null) {
-      const [fullMatch, severity, file, line, issue, impact, action] = match;
+      const [fullMatch, severityBrackets, severityEmoji, file, line, issue, impact, action] = match;
+      const severity = (severityBrackets || severityEmoji || "").trim();
 
-      // Skip if file doesn't exist or already handled via patterns
+      // Skip if file doesn't exist
       const cleanFile = file.trim();
-      if (!fs.existsSync(cleanFile) || issue.toLowerCase().includes("console.log")) continue;
+      if (!fs.existsSync(cleanFile)) continue;
 
       console.log(`\n${BOLD}${CYAN}💡 AI Suggestion for ${cleanFile}:${line}${RESET}`);
       console.log(`${BOLD}Issue:${RESET} ${issue}`);
@@ -157,6 +158,7 @@ ${diff}
 
       const answer = askUser(`Apply this fix? (y/N): `);
       if (answer.toLowerCase() === "y") {
+        console.log(`\n${BOLD}${YELLOW}✨ Generating fix for ${cleanFile}...${RESET}`);
         const currentContent = fs.readFileSync(cleanFile, "utf8");
         const fixPrompt = `
 You are a senior developer. Apply the following fix to the file.
@@ -186,6 +188,7 @@ Rules:
           console.log(`${BOLD}${GREEN}✅ Fix applied and re-staged.${RESET}`);
           fixesApplied = true;
         } else {
+          console.log(`${BOLD}${RED}❌ Failed to generate valid fix.${RESET}`);
         }
       }
     }

@@ -201,24 +201,8 @@ async function pushFlow() {
     // Read stdin to detect real force push
     let isForcePush = process.env.GIT_PUSH_OPTION_COUNT > 0;
     
-    // Read from stdin (one line per ref: <local ref> <local sha1> <remote ref> <remote sha1>)
-    // Regex validation added to satisfy AI reviewer's security concerns (input sanitization)
-    const stdin = await new Promise((resolve) => {
-      let data = "";
-      if (process.stdin.isTTY) return resolve("");
-      process.stdin.setEncoding('utf-8');
-
-      // Use a timer but clear it if end is reached
-      const timer = setTimeout(() => {
-        resolve(data);
-      }, 100);
-
-      process.stdin.on('data', chunk => data += chunk);
-      process.stdin.on('end', () => {
-        clearTimeout(timer);
-        resolve(data);
-      });
-    });
+    let stdin = "";
+    try { stdin = fs.readFileSync(0, "utf-8"); } catch (e) {}
 
     if (stdin) {
       const lines = stdin.trim().split('\n');

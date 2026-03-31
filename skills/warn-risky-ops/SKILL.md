@@ -10,12 +10,25 @@ Check the current branch name using git branch --show-current.
 Check the push command being executed.
 
 Look for these risks:
-1. 🔴 Critical: force push (--force or -f flag detected)
-2. 🔴 Critical: pushing directly to main or master branch
-3. 🟡 Warning: pushing more than 20 files at once
-4. 🟡 Warning: branch name has no prefix like feature/ fix/ chore/
+
+1. 🔴 Critical: force push detected (--force or -f flag)
+   - This is the ONLY reason to BLOCK
+   - Force pushing overwrites history permanently
+
+2. 🟡 Warning: pushing more than 20 files at once
+   - Large pushes are hard to review
+   - Suggest breaking into smaller commits
+   - Do NOT block for this — just warn
+
+3. 🟢 Tip: branch name has no prefix like feature/ fix/ chore/
+   - Just inform, never block for this
+
+Important rules:
+- Normal push to main → ALWAYS PASS, this is fine
+- ONLY block if force push is detected
+- Keep response under 5 lines
 
 For each risk found:
-- Explain exactly what could go wrong in simple words
-- Suggest the safer alternative command
-- End with VERDICT: PASS ✅ or VERDICT: BLOCK 🚫
+- Explain what could go wrong in one line
+- Suggest safer alternative in one line
+- End with exactly VERDICT: PASS or VERDICT: BLOCK

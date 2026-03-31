@@ -56,12 +56,10 @@ async function reviewFlow() {
   try {
     const diff = run("git diff --cached");
     if (!diff) {
-      console.log("⚠️  No staged changes found. Run git add . first!");
       return;
     }
 
     // SKILL 1 — Code Review
-    console.log(`\n${BOLD}${YELLOW}🔍 Skill 1: Code Review...${RESET}\n`);
     const reviewPrompt = `
 You are GitGuard, an AI code reviewer. Your goal is to provide a brief but high-quality review of the staged changes.
 
@@ -104,14 +102,104 @@ ${diff}
 
     console.log(coloredReview);
 
+    // --- AUTO-FIX FEATURE ---
+    let fixesApplied = false;
+    const stagedFiles = run("git diff --cached --name-only").split("\n").filter(Boolean);
+
+    // 1. Pattern-based Auto-fixes (Deterministic)
+    const fixPatterns = [
+      { name: "console.log", regex: /console\.log\(.*\);?/g },
+      { name: "debugger", regex: /debugger;?/g }
+    ];
+
+    for (const file of stagedFiles) {
+      if (!fs.existsSync(file)) continue;
+      let content = fs.readFileSync(file, "utf8");
+      let modified = false;
+
+      for (const p of fixPatterns) {
+        const lines = content.split(/\r?\n/);
+        const matchingLines = lines
+          .map((line, idx) => line.match(p.regex) ? idx + 1 : null)
+          .filter(Boolean);
+
+        if (matchingLines.length > 0) {
+          const answer = askUser(`\n${BOLD}${YELLOW}⚠️  ${p.name} detected in ${file} (line: ${matchingLines.join(", ")})${RESET}\n💡 Suggested Fix: Remove ${p.name} statements. Apply? (y/N): `);
+          if (answer.toLowerCase() === "y") {
+            const filteredLines = lines.filter(line => !line.match(p.regex));
+            content = filteredLines.join("\n");
+            modified = true;
+          }
+        }
+      }
+
+      if (modified) {
+        fs.writeFileSync(file, content);
+        run(`git add "${file}"`);
+        fixesApplied = true;
+        console.log(`${BOLD}${GREEN}✅ Removed debug statements in ${file}.${RESET}`);
+      }
+    }
+
+    // 2. AI-powered Suggestions Fix
+    const issueRegex = /\[(.*?)\]\s+(.*?):(\d+)\s+-\s+(.*)\r?\n\s*Impact:\s+(.*)\r?\n\s*Action:\s+(.*)/gi;
+    let match;
+    while ((match = issueRegex.exec(reviewResult)) !== null) {
+      const [fullMatch, severity, file, line, issue, impact, action] = match;
+
+      // Skip if file doesn't exist or already handled via patterns
+      const cleanFile = file.trim();
+      if (!fs.existsSync(cleanFile) || issue.toLowerCase().includes("console.log")) continue;
+
+      console.log(`\n${BOLD}${CYAN}💡 AI Suggestion for ${cleanFile}:${line}${RESET}`);
+      console.log(`${BOLD}Issue:${RESET} ${issue}`);
+      console.log(`${BOLD}Fix:${RESET}   ${action}`);
+
+      const answer = askUser(`Apply this fix? (y/N): `);
+      if (answer.toLowerCase() === "y") {
+        const currentContent = fs.readFileSync(cleanFile, "utf8");
+        const fixPrompt = `
+You are a senior developer. Apply the following fix to the file.
+File: ${cleanFile}
+Line: ${line}
+Issue: ${issue}
+Action: ${action}
+
+Current File Content:
+\`\`\`
+${currentContent}
+\`\`\`
+
+Rules:
+- MUST return the ENTIRE updated file content.
+- DO NOT include markdown code blocks, explanations, or any other text.
+- Return ONLY the raw code.
+`;
+
+        let fixedContent = await callGroq(fixPrompt);
+        // Clean up markdown blocks if AI ignored rules
+        fixedContent = fixedContent.replace(/^```[a-z]*\r?\n/i, "").replace(/\r?\n```$/g, "").trim();
+
+        if (fixedContent && fixedContent.length > 10) {
+          fs.writeFileSync(cleanFile, fixedContent);
+          run(`git add "${cleanFile}"`);
+          console.log(`${BOLD}${GREEN}✅ Fix applied and re-staged.${RESET}`);
+          fixesApplied = true;
+        } else {
+        }
+      }
+    }
+
+    if (fixesApplied) {
+      console.log(`\n${BOLD}${GREEN}✨ All fixes applied. Proceeding...${RESET}\n`);
+    }
+
     if (reviewResult.includes("VERDICT: BLOCK")) {
       const override = askUser(`\n${BOLD}${RED}🚫 Critical issues detected! Commit anyway? (y/N): ${RESET}`);
       if (override.toLowerCase() !== "y") {
-        console.log("\n🚫 Commit cancelled. Please fix the issues above.\n");
         process.exitCode = 1;
         return;
       }
-      console.log("\n⚠️ Proceeding despite critical issues...\n");
     }
   } catch (error) {
     console.error("\n❌ Error during review flow:", error.message);
@@ -127,7 +215,6 @@ async function messageFlow(msgFile) {
     if (!diff) return;
 
     // SKILL 2 — Commit Message
-    console.log(`${BOLD}${YELLOW}✨ Skill 2: Commit Message...${RESET}\n`);
     const msgPrompt = `
 You are a senior developer.
 Given a git diff, generate a concise, professional commit message.
@@ -170,23 +257,18 @@ Output exactly in this format:
 
     // Restored Interactivity for Commit Message
     const answer = askUser(`\n${BOLD}${CYAN}👉 Use this commit message? (Y/n): ${RESET}`);
-    console.log(""); 
 
     if (answer.toLowerCase() === "y") {
         try {
             // Standard way to update the commit message in a hook
             fs.writeFileSync(msgFile, autoMessage);
-            console.log(`\n✅ Using AI message: "${autoMessage}"\n`);
         } catch (e) {
-            console.log(`\n💡 Suggested message (copy-paste if needed):\n   "${autoMessage}"\n`);
         }
     } else {
         const customMsg = askUser("✏️  Type your own commit message: ");
         try {
             fs.writeFileSync(msgFile, customMsg);
-            console.log(`\n✅ Using your message: "${customMsg}"\n`);
         } catch (e) {
-            console.log("\n⚠️  Could not update message automatically. Please enter it in the editor.\n");
         }
     }
   } catch (error) {
@@ -251,11 +333,8 @@ async function pushFlow() {
     const files = run("git diff origin/main...HEAD --name-only");
     const fileCount = files ? files.split("\n").length : 0;
 
-    console.log(`\n${BOLD}${CYAN}📍 Branch:${RESET} ${branch}`);
-    console.log(`${BOLD}${CYAN}📁 Files:${RESET}  ${fileCount}`);
 
     // SKILL 3 — Risk Analysis
-    console.log(`\n${BOLD}${YELLOW}🛰️ Skill 3: Risk Analysis...${RESET}\n`);
     const riskPrompt = `
 You are GitGuard, an AI git assistant.
 Analyse this push operation for risks.
@@ -288,11 +367,10 @@ End with exactly "VERDICT: PASS" or "VERDICT: BLOCK".
 
     console.log(coloredRisk);
 
+
     if (riskResult.includes("VERDICT: BLOCK")) {
       const answer = askUser(`\n${BOLD}${RED}⚠️  Risky operation detected! Push anyway? (y/N): ${RESET}`);
-      console.log("");
       if (answer.toLowerCase() !== "y") {
-        console.log("\n🚫 Push cancelled. Stay safe! 🛡️\n");
         process.exitCode = 1;
         return;
       }

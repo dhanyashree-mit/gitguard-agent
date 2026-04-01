@@ -23,6 +23,7 @@ No extra commands. No extra steps. Just `git commit` and `git push` — GitGuard
 ---
 
 ## 🎬 Demo
+[**Watch the Demo Video**](https://youtu.be/09re78W3DK0)
 
 ### Skill 1 — Code Review & Interactive Auto-Fix:
 ```bash

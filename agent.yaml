@@ -1,16 +1,20 @@
-spec_version: "0.1.0"
+spec_version: "0.1.3"
 name: gitguard-agent
-version: 0.1.0
-description: "AI-powered Git assistant that reviews code, writes commit messages, and warns risky operations automatically"
+version: 1.0.0
+description: "An autonomous Git agent that reviews code, applies safe fixes, and prevents risky operations before they reach production"
+
 model:
-preferred: llama-3.3-70b-versatile
-provider: groq
+  preferred: llama-3.3-70b-versatile
+  provider: groq
+
 skills:
   - review-code
   - auto-commit-msg
   - warn-risky-ops
+
 tags:
   - git
-  - productivity
+  - ai-agent
   - developer-tools
-  - hackathon
+  - automation
+  - code-quality

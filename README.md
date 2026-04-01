@@ -13,8 +13,10 @@
 GitGuard is a **gitagent-standard AI agent** that hooks directly into your Git workflow. Every time you commit or push, GitGuard automatically:
 
 - 🔍 **Reviews your code** for bugs, secrets, and security issues
-- ✨ **Writes your commit message** based on what actually changed
+- ✨ **Interactive Auto-Fix**: Previews and applies code fixes directly in your editor
+- ✍️ **Writes your commit message** based on what actually changed
 - 🛡️ **Warns you** before risky operations like force pushes reach your repo
+- 🧠 **Smart Block**: Automatically clears commit blocks once you fix critical issues
 
 No extra commands. No extra steps. Just `git commit` and `git push` — GitGuard does the rest.
 
@@ -22,27 +24,31 @@ No extra commands. No extra steps. Just `git commit` and `git push` — GitGuard
 
 ## 🎬 Demo
 
-### Skill 1 — Code Review catches a hardcoded password:
+### Skill 1 — Code Review & Interactive Auto-Fix:
 ```bash
 $ git commit
 
 🛡️  GitGuard is checking your code...
 
-🔍 Skill 1: Code Review...
-
-📌 Change detected:
-badcode.js has been added with a hardcoded password variable.
-
-🚫 CRITICAL badcode.js:1 - Hardcoded password 'supersecret123' detected
+Issue Review:
+🚫 badcode.js:1 - Hardcoded password 'supersecret123' detected
 Impact: Credential exposure if pushed to public repository
 Action: Use environment variables instead
 
-VERDICT: BLOCK
+💡 AI Suggestion for badcode.js:1
+Issue: Hardcoded password detected
+Fix:   Use process.env.API_PASSWORD instead.
 
-🚫 Critical issues detected! Commit anyway? (y/N): n
+✨ Generating fix for badcode.js...
+📄 Markers injected: Check badcode.js in your editor.
 
-🚫 Commit cancelled. Please fix the issues above.
+Apply this fix? (y/N): y
+✅ Fix applied and re-staged.
+
+✨ All fixes applied. Proceeding...
 ```
+> [!TIP]
+> **Smart Block**: Notice how the "Critical issues" override prompt is skipped because you already fixed them!
 
 ### Skill 2 — Auto writes your commit message:
 ```bash
@@ -176,7 +182,13 @@ Checks for:
 - ⚠️ **Warning:** Safety check bypasses
 - 💡 **Suggestion:** Code style improvements
 
-If Critical issues are found → commit is **BLOCKED** unless you choose to override.
+If Critical issues are found → GitGuard identifies the line and offers an **Interactive Auto-Fix**.
+
+#### ✨ Interactive Auto-Fix
+- **Pattern Match**: Instantly removes `console.log` and `debugger`.
+- **AI-Powered**: Uses Llama 3.3 to refactor logic bugs (e.g., constant reassignment).
+- **In-File Markers**: Injects `<<<<<<< HEAD` and `>>>>>>> SUGGESTION` markers directly into your file for a red/green preview in your editor.
+- **Smart Block**: Once you apply the suggested fixes, GitGuard automatically clears the "BLOCK" verdict, letting you proceed with the commit seamlessly.
 
 ---
 

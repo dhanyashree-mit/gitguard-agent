@@ -71,6 +71,7 @@ $ git commit
 
 ### Skill 3 — Blocks a force push:
 ```bash
+$ git commit --amend -m "Changes "
 $ git push --force
 
 🛡️  GitGuard is checking your push...
